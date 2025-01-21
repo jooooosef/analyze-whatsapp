@@ -314,15 +314,24 @@ def words_per_message(file_path):
                                     key=lambda x: x[1], 
                                     reverse=True))
         
-        plt.figure(figsize=(12, 8))
-        plt.pie(sorted_averages.values(), 
-                labels=[f"{sender}\n({avg} Wörter/Nachricht)" 
-                       for sender, avg in sorted_averages.items()],
-                autopct='%1.1f%%')
+        plt.figure(figsize=(12, 6))
+        
+        # Erstelle horizontales Balkendiagramm
+        y_pos = range(len(sorted_averages))
+        plt.barh(y_pos, sorted_averages.values())
+        
+        # Beschrifte die y-Achse mit den Namen
+        plt.yticks(y_pos, [f"{sender}\n({avg} Wörter/Nachricht)" 
+                          for sender, avg in sorted_averages.items()])
         
         plt.title('Durchschnittliche Wortanzahl pro Nachricht und Person')
-        plt.axis('equal')
+        plt.xlabel('Wörter pro Nachricht')
         
+        # Füge Werte am Ende der Balken hinzu
+        for i, v in enumerate(sorted_averages.values()):
+            plt.text(v, i, f' {v}', va='center')
+        
+        plt.tight_layout()
         plt.savefig('whatsapp_words_per_message.png', bbox_inches='tight', dpi=300)
         print('Saved whatsapp_words_per_message.png')
         
