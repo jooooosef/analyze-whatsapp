@@ -390,8 +390,99 @@ def longest_messages(file_path):
        print(f"Fehler beim Verarbeiten der Datei: {e}")
        return None
 
+def analyze_conversation_starters(file_path, time_gap_hours=8):
+    # Dictionary für die Zählung der Konversationsstarter
+    conversation_starters = defaultdict(int)
+    
+    # Liste für alle Nachrichten mit Zeitstempel und Absender
+    messages = []
+    
+    # Regex-Pattern für WhatsApp Nachrichten mit Zeitstempel
+    # Beispiel: [26.01.24, 15:30:45] Sender: Nachricht
+    pattern = r'\[([\d\.,\s:]+)\] ([^:]+): (.+)'
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            for line in file:
+                match = re.match(pattern, line)
+                if match:
+                    # Extrahiere Zeitstempel und Absender
+                    timestamp_str = match.group(1).strip()
+                    sender = match.group(2).strip()
+                    
+                    # Konvertiere Zeitstempel in datetime-Objekt
+                    # Annahme: Format ist DD.MM.YY, HH:MM:SS
+                    try:
+                        timestamp = datetime.strptime(timestamp_str, '%d.%m.%y, %H:%M:%S')
+                    except ValueError:
+                        # Falls das Format anders ist, können wir hier alternative Formate probieren
+                        continue
+                    
+                    messages.append((timestamp, sender))
+        
+        # Sortiere Nachrichten nach Zeitstempel
+        messages.sort(key=lambda x: x[0])
+        
+        # Die erste Nachricht ist immer ein Konversationsstarter
+        if messages:
+            conversation_starters[messages[0][1]] += 1
+        
+        # Analysiere zeitliche Abstände und identifiziere neue Konversationen
+        for i in range(1, len(messages)):
+            current_time = messages[i][0]
+            previous_time = messages[i-1][0]
+            
+            # Berechne Zeitdifferenz in Stunden
+            time_diff = (current_time - previous_time).total_seconds() / 3600
+            
+            # Wenn der Zeitabstand größer als der Parameter ist, 
+            # beginnt hier eine neue Konversation
+            if time_diff >= time_gap_hours:
+                conversation_starters[messages[i][1]] += 1
+        
+        # Erstelle Visualisierung
+        plt.figure(figsize=(10, 6))
+        
+        # Sortiere nach Anzahl der gestarteten Konversationen
+        sorted_starters = dict(sorted(conversation_starters.items(), 
+                                    key=lambda x: x[1], 
+                                    reverse=True))
+        
+        # Erstelle Balkendiagramm
+        plt.bar(sorted_starters.keys(), sorted_starters.values())
+        
+        # Beschrifte das Diagramm
+        plt.title(f'Anzahl gestarteter Konversationen (Zeitabstand: {time_gap_hours}h)')
+        plt.xlabel('Person')
+        plt.ylabel('Anzahl gestarteter Konversationen')
+        
+        # Rotiere x-Achsen-Labels für bessere Lesbarkeit
+        plt.xticks(rotation=45, ha='right')
+        
+        # Füge Werte über den Balken hinzu
+        for i, (person, count) in enumerate(sorted_starters.items()):
+            plt.text(i, count, str(count), ha='center', va='bottom')
+        
+        plt.tight_layout()
+        plt.savefig('conversation_starters.png', bbox_inches='tight', dpi=300)
+        print('Saved conversation_starters.png')
+        
+        # Berechne prozentuale Verteilung
+        total_conversations = sum(conversation_starters.values())
+        percentages = {person: (count/total_conversations)*100 
+                      for person, count in sorted_starters.items()}
+        
+        return {
+            'absolute_counts': sorted_starters,
+            'percentages': percentages
+        }
+
+    except Exception as e:
+        print(f"Fehler beim Verarbeiten der Datei: {e}")
+        return None
+
 def doAll(file_path):
-    #analyze_specific_words not included
+    #analyze_specific_words, analyze_conversation_startes not included
     one_hour_interval(file_path)
     messages_by_sender(file_path)
     analyze_word_frequency(file_path)
@@ -402,5 +493,6 @@ def doAll(file_path):
 # Verwendung
 if __name__ == "__main__":
    file_path = "_chat.txt"
-   #analyze_specific_words(file_path, ['hä', 'kek', 'müll', 'gym', 'ti', 'mathe'])
-   doAll(file_path)
+   #analyze_specific_words(file_path, ['hä', 'kek', 'müll', 'ti', 'mathe'])
+   analyze_conversation_starters(file_path, 10)
+   #doAll(file_path)
